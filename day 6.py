@@ -261,6 +261,45 @@ def view_cart():
         'grand_total': sum(i['subtotal'] for i in cart),
     }
 
+@app.post('/cart/checkout')
+def checkout(checkout_data: CheckoutRequest, response: Response):
+    global order_counter
+    if not cart:
+        response.status_code = status.HTTP_400_BAD_REQUEST
+        return {'error': 'Cart is empty'}
+    placed_orders = []
+    grand_total   = 0
+    for item in cart:
+        order = {
+            'order_id':         order_counter,
+            'customer_name':    checkout_data.customer_name,
+            'product':          item['product_name'],
+            'quantity':         item['quantity'],
+            'delivery_address': checkout_data.delivery_address,
+            'total_price':      item['subtotal'],
+            'status':           'confirmed',
+        }
+        orders.append(order)
+        placed_orders.append(order)
+        grand_total   += item['subtotal']
+        order_counter += 1
+    cart.clear()
+    response.status_code = status.HTTP_201_CREATED
+    return {
+        'message':       'Checkout successful',
+        'orders_placed': placed_orders,
+        'grand_total':   grand_total,
+    }
+
+@app.delete('/cart/{product_id}')
+def remove_from_cart(product_id: int, response: Response):
+    for item in cart:
+        if item['product_id'] == product_id:
+            cart.remove(item)
+            return {'message': f"{item['product_name']} removed from cart"}
+    response.status_code = status.HTTP_404_NOT_FOUND
+    return {'error': 'Product not in cart'}
+
 from fastapi import FastAPI, Query
 from typing import List
 
@@ -322,42 +361,4 @@ def browse_products(
         "total_pages": total_pages,
         "products": paginated_result
     }
-@app.post('/cart/checkout')
-def checkout(checkout_data: CheckoutRequest, response: Response):
-    global order_counter
-    if not cart:
-        response.status_code = status.HTTP_400_BAD_REQUEST
-        return {'error': 'Cart is empty'}
-    placed_orders = []
-    grand_total   = 0
-    for item in cart:
-        order = {
-            'order_id':         order_counter,
-            'customer_name':    checkout_data.customer_name,
-            'product':          item['product_name'],
-            'quantity':         item['quantity'],
-            'delivery_address': checkout_data.delivery_address,
-            'total_price':      item['subtotal'],
-            'status':           'confirmed',
-        }
-        orders.append(order)
-        placed_orders.append(order)
-        grand_total   += item['subtotal']
-        order_counter += 1
-    cart.clear()
-    response.status_code = status.HTTP_201_CREATED
-    return {
-        'message':       'Checkout successful',
-        'orders_placed': placed_orders,
-        'grand_total':   grand_total,
-    }
-
-@app.delete('/cart/{product_id}')
-def remove_from_cart(product_id: int, response: Response):
-    for item in cart:
-        if item['product_id'] == product_id:
-            cart.remove(item)
-            return {'message': f"{item['product_name']} removed from cart"}
-    response.status_code = status.HTTP_404_NOT_FOUND
-    return {'error': 'Product not in cart'}
 
